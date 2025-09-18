@@ -2,8 +2,9 @@ import tkinter as tk
 from tkinter import font
 import threading
 from typing import Optional
-from tracker import TimeTracker
+from tracker_daily import TimeTracker
 from gui import show_category_picker
+from stats_gui_minimal import show_minimal_stats_window
 
 class MinimalOverlay:
     def __init__(self, tracker: TimeTracker):
@@ -128,6 +129,7 @@ class MinimalOverlay:
             )
 
         context_menu.add_separator()
+        context_menu.add_command(label="Show Stats", command=self._show_stats)
         context_menu.add_command(label="Exit", command=self._exit)
 
         try:
@@ -139,6 +141,16 @@ class MinimalOverlay:
         """Quickly switch to a category"""
         self.tracker.start_session(category)
         self._update_display()
+
+    def _show_stats(self):
+        """Show the stats window"""
+        def stats_thread():
+            try:
+                show_minimal_stats_window(self.tracker)
+            except Exception as e:
+                print(f"Error opening stats window: {e}")
+
+        threading.Thread(target=stats_thread, daemon=True).start()
 
     def _expand(self):
         """Show category buttons below current category"""
@@ -165,14 +177,14 @@ class MinimalOverlay:
                 continue
 
             # Determine button color based on category
-            if category == 'wasted':
-                bg_color = '#8B4513'  # Brown
-            elif category == 'programming':
-                bg_color = '#2E8B57'  # Sea green
-            elif category == 'stop':
-                bg_color = '#2d2d2d'  # Dark gray
-            else:
-                bg_color = '#4682B4'  # Steel blue
+            category_colors = {
+                'programming': '#2E8B57',     # Sea green
+                'wasted': '#8B4513',          # Brown
+                'Asset Creation': '#4682B4',  # Steel blue
+                'Math': '#9370DB',            # Medium purple
+                'stop': '#2d2d2d'             # Dark gray
+            }
+            bg_color = category_colors.get(category, '#4682B4')  # Default to steel blue
 
             btn = tk.Label(
                 self.button_frame,
@@ -196,7 +208,11 @@ class MinimalOverlay:
         # Resize window to fit all buttons
         button_count = len(self.category_buttons)
         new_height = self.initial_height + (button_count * 25)  # 25px per button
-        self.root.geometry(f"{self.width}x{new_height}+{self.x}+{self.y}")
+
+        # Get current position instead of using initial position
+        current_x = self.root.winfo_x()
+        current_y = self.root.winfo_y()
+        self.root.geometry(f"{self.width}x{new_height}+{current_x}+{current_y}")
 
         # Bind click outside to collapse
         self.root.bind('<FocusOut>', lambda e: self._collapse())
@@ -212,7 +228,9 @@ class MinimalOverlay:
         self.button_frame.pack_forget()
 
         # Resize window back to original size
-        self.root.geometry(f"{self.width}x{self.initial_height}+{self.x}+{self.y}")
+        current_x = self.root.winfo_x()
+        current_y = self.root.winfo_y()
+        self.root.geometry(f"{self.width}x{self.initial_height}+{current_x}+{current_y}")
 
         # Remove focus out binding
         self.root.unbind('<FocusOut>')
@@ -234,15 +252,14 @@ class MinimalOverlay:
         if current and current['category'] != 'stop':
             category_text = current['category']
             # Change color based on category
-            if current['category'] == 'wasted':
-                bg_color = '#8B4513'  # Brown for wasted time
-                fg_color = '#ffffff'
-            elif current['category'] == 'programming':
-                bg_color = '#2E8B57'  # Sea green for programming
-                fg_color = '#ffffff'
-            else:
-                bg_color = '#4682B4'  # Steel blue for other categories
-                fg_color = '#ffffff'
+            category_colors = {
+                'programming': '#2E8B57',     # Sea green
+                'wasted': '#8B4513',          # Brown
+                'Asset Creation': '#4682B4',  # Steel blue
+                'Math': '#9370DB',            # Medium purple
+            }
+            bg_color = category_colors.get(current['category'], '#4682B4')  # Default to steel blue
+            fg_color = '#ffffff'
         else:
             category_text = "No session"
             bg_color = '#2d2d2d'  # Dark gray for no session
